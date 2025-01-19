@@ -1,0 +1,115 @@
+\documentclass{article}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\title{Python Script for Generating Report Cards}
+\author{}
+\date{}
+
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegray},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\begin{document}
+
+\maketitle
+
+\section*{Python Script}
+
+\begin{lstlisting}[language=Python, caption=Python Script for Generating Report Cards]
+import pandas as pd
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+import os
+
+def generate_report_cards(file_path):
+    try:
+        # Read the Excel file
+        df = pd.read_excel(file_path)
+
+        # Validate required columns
+        required_columns = {'Student ID', 'Name', 'Subject', 'Score'}
+        if not required_columns.issubset(df.columns):
+            raise ValueError(f"Excel file must contain columns: {required_columns}")
+
+        # Handle missing or invalid data
+        df.dropna(subset=['Student ID', 'Name', 'Subject', 'Score'], inplace=True)
+        df['Score'] = pd.to_numeric(df['Score'], errors='coerce')
+        df.dropna(subset=['Score'], inplace=True)
+
+        # Group by Student ID and Name
+        grouped = df.groupby(['Student ID', 'Name'])
+
+        for (student_id, name), group in grouped:
+            total_score = group['Score'].sum()
+            average_score = group['Score'].mean()
+            subject_scores = group[['Subject', 'Score']].values.tolist()
+
+            # Create PDF
+            file_name = f"report_card_{student_id}.pdf"
+            doc = SimpleDocTemplate(file_name, pagesize=A4)
+            elements = []
+            styles = getSampleStyleSheet()
+
+            # Title and Summary
+            elements.append(Paragraph(f"Report Card for {name}", styles['Title']))
+            elements.append(Spacer(1, 12))
+            elements.append(Paragraph(f"Total Score: {total_score}", styles['Normal']))
+            elements.append(Paragraph(f"Average Score: {average_score:.2f}", styles['Normal']))
+            elements.append(Spacer(1, 12))
+
+            # Subject-wise Scores Table
+            table_data = [['Subject', 'Score']] + subject_scores
+            table = Table(table_data)
+            table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            elements.append(table)
+
+            # Build PDF
+            doc.build(elements)
+            print(f"Generated report card for {name} (ID: {student_id})")
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == "__main__":
+    generate_report_cards("student_scores.xlsx")
+\end{lstlisting}
+
+\section*{Approach Explanation}
+
+\begin{itemize}
+    \item \textbf{Data Loading:} Reads the Excel file containing student scores using \texttt{pandas}.
+    \item \textbf{Data Validation:} Ensures required columns exist and handles missing or invalid data.
+    \item \textbf{Grouping and Calculation:} Groups data by student and calculates total and average scores.
+    \item \textbf{PDF Generation:} Uses \texttt{ReportLab} to create a PDF report for each student, including a table of subject-wise scores.
+    \item \textbf{Error Handling:} Captures and prints errors during the process for debugging.
+\end{itemize}
+
+\end{document}
